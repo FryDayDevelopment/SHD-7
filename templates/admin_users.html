@@ -1,0 +1,308 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<div class="content">
+<h1>Maintain Users</h1>
+<h6>Update Name, Role, Active and Reset Password</h6>
+</div>
+
+<table class="container user-table" id="user-table">
+    <tr>
+        <th>ID</th>
+        <th>Email</th>
+        <th>Name</th>
+        <th>Role</th>
+        <th>Active</th>
+        <th>Password</th>
+    </tr>
+{% for user in userData.users %}
+  {% if user.active != 1 %}
+    {% set visClass = "not-visible" %}
+  {% elif user.id == current_user.id %}
+    {% set visClass = "curr-user" %}
+  {% else %}
+    {% set visClass = "" %}
+  {% endif %}
+    <tr {{ 'class=' + visClass if visClass else null }}>
+        <td>{{ user.id }}</td>
+        <td>{{ user.email }}</td>
+        <td contenteditable>{{ user.name }}</td>
+        <td>
+            {% if user.id != current_user.id %}
+            <select id="role-{{ user.id }}">
+                <option value="Admin" {{ 'selected' if user.role == 'Admin' else '' }}>Admin</option>
+                <option value="Guest" {{ 'selected' if user.role == 'Guest' else '' }}>Guest</option>
+                <option value="User" {{ 'selected' if user.role == 'User' else '' }}>User</option>
+            </select></td>
+            {% else %}
+                {{ user.role }}
+            {% endif %}
+        <td style="text-align:center;">
+            {% if user.id != current_user.id %}
+            <input type="checkbox" id="active-{{ user.id }}" name="active-{{ user.id }}" value="active" {{ 'checked' if user.active == 1 else null }}>
+            {% else %}
+                {{ 'Active' if user.active else 'Inactive' }}
+            {% endif %}
+        <td style="text-align:center;"> 
+            <input type="checkbox" id="reset-{{ user.id }}" name="reset-{{ user.id }}" value="reset">
+            <label for="reset-{{ user.id }}">Reset</label>
+        </td>
+    </tr>
+{% endfor %}    
+</table>
+<div class="section save-container">
+    <p>
+        <button type="button" class="button is-info is-medium" onclick="addUser()">New</button>
+        <button type="button" class="button is-info is-medium" id="btnSave" onclick="saveConfig()">Save</button>
+    </p>
+</div>
+
+<div class="form-background">
+<div id="add-user-form" style="text-align: left !important;">
+    <div class="field">
+      <label class="label">Email</label>
+      <div class="control has-icons-left has-icons-right">
+        <input class="input" id="form-email" type="email" placeholder="Email input" value="" autofocus>
+        <span class="icon is-small is-left">
+          <i class="fas fa-envelope"></i>
+        </span>
+        <span class="icon is-small is-right">
+          <i class="fas fa-check"></i>
+        </span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="label">Name</label>
+      <div class="control">
+        <input class="input" id="form-name" type="text" placeholder="Name">
+      </div>
+    </div>
+
+    <div class="field">
+        <label class="label">Role</label>
+      <div class="control">
+        <label class="select">
+            <select id="form-role">
+                <option>Admin</option>
+                <option>Guest</option>
+                <option selected>User</option>
+            </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="control">
+        <label class="checkbox">
+          <input type="checkbox" id="form-active">
+          Activate User
+        </label>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">Note: Password will be set at first login</div>
+    </div>
+
+    <div class="field is-grouped">
+      <div class="control">
+        <button class="button is-link" id="btnNew" onclick="saveNewUser()">Submit</button>
+      </div>
+      <div class="control">
+        <button class="button is-link is-light" onclick="closeForm()">Cancel</button>
+      </div>
+    </div>
+</div>
+</div>
+
+<script>
+    document.querySelector("#users-menu").classList.add("active");
+    var userData = {{ userData | safe }};
+    console.log(JSON.stringify(userData));
+    
+    const ID = 0;
+    const EMAIL = 1;
+    const NAME = 2;
+    const ROLE = 3;
+    const ACTIVE = 4;
+    const RESET = 5
+    
+    var table = document.querySelector("#user-table");
+
+    table.addEventListener("keypress", function(e) {
+      if (e.key == "Enter") {
+        e.preventDefault();
+      }
+    });
+
+    table.addEventListener("focusout", function(e) {
+        var tableRow = e.target.closest("tr");
+        var tableCell = e.target.closest("td");
+        var index = tableRow.rowIndex-1;
+        var defaultColor = tableRow.cells[0].style.backgroundColor;
+        if (tableCell.cellIndex == NAME) {
+            if (e.target.innerHTML != userData.users[index].name) {
+                e.target.style.backgroundColor = "red";
+            } else {
+                e.target.style.backgroundColor = defaultColor;
+            }
+        } else if (tableCell.cellIndex == ROLE) {
+            var selected = document.querySelector("#role-" + userData.users[index].id);
+            console.log("Selected: " + selected.value);
+            if (selected.value != userData.users[index].role) {
+                e.target.style.backgroundColor = "red";
+            } else {
+                e.target.style.backgroundColor = defaultColor;
+            }
+        } else if (tableCell.cellIndex == ACTIVE) {
+            var activeCell = document.querySelector("#active-" + userData.users[index].id);
+            console.log("Active: " + activeCell.checked);
+            var activeVal = activeCell.checked ? 1 : 0;
+            if (activeVal != userData.users[index].active) {
+                tableCell.style.backgroundColor = "red";
+            } else {
+                tableCell.style.backgroundColor = defaultColor;
+            }            
+        } else if (tableCell.cellIndex == RESET) {
+            if (document.querySelector("#reset-" + userData.users[index].id).checked) {
+                tableCell.style.backgroundColor = "red";
+            } else {
+                tableCell.style.backgroundColor = defaultColor;
+            }
+        }
+    });
+    
+    function addUser() {
+        document.querySelector(".form-background").style.display = "block";
+        document.querySelector("#form-email").focus();
+    }
+
+    function closeForm() {
+        document.querySelector(".form-background").style.display = "none";
+    }
+
+    function saveNewUser() {
+        var newUser = {};
+        var email = document.querySelector("#form-email").value;
+        var name = document.querySelector("#form-name").value;
+        var role = document.querySelector("#form-role").value;
+        var active = document.querySelector("#form-active").checked;
+        if (!validateEmail()) {
+            document.querySelector("#form-email").focus();
+        } else {
+            document.querySelector("#btnNew").classList.add("is-loading");
+            newUser.email = email;
+            newUser.name = name;
+            newUser.role = role;
+            newUser.active = active ? "1" : "0";
+            console.log(JSON.stringify(newUser, null, 2));
+            createUser(newUser);
+            window.location.reload();
+            closeForm();
+        }
+    }
+    
+    function validateEmail() {
+        return true;
+        
+        var email = document.querySelector("#form-email").value;
+        var mailformat = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+        if(email.match(mailformat)){
+            var table = document.querySelector("#user-table");
+            var rows = table.rows.length;
+            for (var x = 0; x < rows; x++) {
+                if (email == table.rows[x].cells[EMAIL].innerHTML) {
+                    alert("Email already used!");
+                    return false;
+                }
+            }
+            return true;
+        } else {
+            alert("You have entered an invalid email address!");
+            return false;
+        }
+    }
+    
+    function saveConfig() {
+        document.querySelector("#btnSave").classList.add("is-loading");
+        var rows = table.rows.length;
+        var userChanges = {"users": []};
+
+        for (row = 1; row < rows; row++) {
+            var tableRow = table.rows[row];
+            console.log("id: " + userData.users[row-1].id);
+            var roleCell = document.querySelector("#role-" + userData.users[row-1].id);
+            var activeCell = document.querySelector("#active-" + userData.users[row-1].id);
+            var resetCell = document.querySelector("#reset-" + userData.users[row-1].id);
+            if (roleCell && activeCell) {
+                var activeVal = activeCell.checked ? 1 : 0;
+                if (tableRow.cells[NAME].innerHTML != userData.users[row-1].name ||
+                    roleCell.value != userData.users[row-1].role ||
+                    activeVal != userData.users[row-1].active ||
+                    resetCell.checked) {
+                    userChanges.users.push({"id": userData.users[row-1].id,
+                                               "name": tableRow.cells[NAME].innerHTML,
+                                               "role": roleCell.value,
+                                               "active": activeVal.toString(),
+                                               "reset": resetCell.checked ? "1" : "0"});            
+                }
+            } else {
+                if (tableRow.cells[NAME].innerHTML != userData.users[row-1].name ||
+                    resetCell.checked) {
+                    userChanges.users.push({"id": userData.users[row-1].id,
+                                               "name": tableRow.cells[NAME].innerHTML,
+                                               "role": userData.users[row-1].role,
+                                               "active": userData.users[row-1].active.toString(),
+                                               "reset": resetCell.checked ? "1" : "0"}); 
+                }
+            }
+        }
+
+        console.log(userChanges);
+
+        if (userChanges.users.length > 0) {
+          updateUsers(userChanges);
+          setTimeout(reloadWindow, 1000);
+        } else {
+            document.querySelector("#btnSave").classList.Remove("is-loading");
+        }
+    }
+
+    function reloadWindow() {
+        window.location.reload();
+    }
+
+    function updateUsers(userChanges) {
+        var furl = "/update-users";
+        console.log("furl: " + furl);
+
+        var xhttp=new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                if (this.response != "OK") {
+                    alert("Update Failed!  Please try again.");
+                }
+            }
+        };
+        xhttp.open("POST", furl);
+        xhttp.setRequestHeader("Content-Type", "application/json");
+        xhttp.send(JSON.stringify(userChanges));
+    };
+
+    function createUser(newUser) {
+        var furl = "/new-user";
+        var xhttp=new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                if (this.response != "OK") {
+                    alert("Update Failed! Please try again.");
+                }
+            }
+        };
+        xhttp.open("POST", furl);
+        xhttp.setRequestHeader("Content-Type", "application/json");
+        xhttp.send(JSON.stringify(newUser));
+    }
+    
+</script>
+{% endblock %}

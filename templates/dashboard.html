@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">	
+    <title>SmartThings Dashboard</title>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.3/socket.io.min.js"></script>
+    <link rel="stylesheet" href="static/css/all.css" />
+  	<script src="/static/autorefresh.js"></script>
+    <style>
+      body {
+        text-align: center;
+        font-size: 32px;
+        background-color: teal;
+        color: white;
+        padding-bottom: 50px;
+      }
+      .overlay {
+        position: fixed;
+        display: none;
+        height: 100%;
+        width: 100%;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(169, 200, 236, 0.85);
+        z-index: 2;
+      }
+      #header {
+        margin-bottom: 10px;
+      }
+      #user {
+        position: absolute;
+        cursor: pointer;
+        top: 15px;
+        left: 15px;
+        height: 30px;
+        width: auto;
+        font-size: 18px;
+        display: block;
+        {% if current_user.role == 'Admin' %}
+        color: gold;
+        {% elif current_user.role == 'User' %}
+        color: white;
+        {% else %}
+        color: aqua;
+        {% endif %}
+      }
+      #header-back-button {
+        cursor: pointer;
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        height: 30px;
+        width: auto;
+        font-size: 18px;
+        display: none;
+        --display: block;
+      }
+      #header-refresh-button {
+        cursor: pointer;
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        height: 30px;
+        width: auto;
+        font-size: 18px;
+        display: block;
+      }
+      .disconnected {
+        color: red;
+      }
+      #back-button {
+        display: none;
+        margin: auto;
+        text-align: center;
+        height: 30px;
+        width: 100px;
+        font-size: 18px;
+      }
+      #devices {
+        width: 98%;
+        height: auto;
+        margin: auto;
+        background: teal;
+        padding: 5px 5px 5px 5px;
+        text-align: center;
+        font-size: 32px;
+        box-sizing: border-box;
+        overflow: auto;
+      }
+      .device {
+        background: radial-gradient(lightblue, steelblue);
+        position: relative;
+        float: left;
+        margin: 7px;
+        height: 200px;
+        width: 23%;
+        color: black;
+        border: 1px solid white;
+        border-radius: 10px;
+        box-sizing: border-box;
+	  		box-shadow: 4px 4px 4px powderblue;
+        overflow: hidden;
+      }
+      .room {
+        background: radial-gradient(lightblue, steelblue);
+        position: relative;
+        float: left;
+        margin: 5px;
+        height: 100px;
+        width: 32%;
+        color: black;
+        border: 1px solid white;
+        border-radius: 10px;
+        box-sizing: border-box;
+	  		box-shadow: 4px 4px 4px powderblue;
+        overflow: hidden;
+      }
+      .presence {
+        background: radial-gradient(lightblue, steelblue);
+        position: relative;
+        float: left;
+        margin: 5px;
+        height: 100px;
+        width: 32%;
+        color: black;
+        border: 1px solid white;
+        border-radius: 10px;
+        box-sizing: border-box;
+  			box-shadow: 4px 4px 4px powderblue;
+        overflow: hidden;
+      }
+      .presence-name {
+        width: 100%;
+        margin: auto;
+        margin-top: 20px;
+        text-align: center;
+        font-size: 24px;
+      }
+      .scene {
+        background: radial-gradient(lightblue, steelblue);
+        position: relative;
+        float: left;
+        margin: 7px;
+        height: 100px;
+        width: 31%;
+        color: black;
+        border: 1px solid white;
+        border-radius: 10px;
+        box-sizing: border-box;
+	  		box-shadow: 4px 4px 4px powderblue;
+        overflow: hidden;        
+      }
+      .scene-name {
+        width: 96%;
+        margin: auto;
+        margin-top: 20px;
+        text-align: center;
+        font-size: 24px;
+      }
+      .scene-block {
+        box-shadow: 5px 5px 5px black;
+      }
+      .Away {
+        background: radial-gradient(linen, darkgray);
+      }
+      .room-name {
+        margin-top: 8px;
+        margin-left: 5px;
+        margin-right: 5px;
+        font-size: 20px;
+        text-align: center;
+      }
+      .room-main {
+        position: absolute;
+        top: 10px;
+        margin-top: 10px;
+        height: 60px;
+        width: 100%;
+        overflow: hidden;
+        font-size: 24px;
+        text-align: center;
+      }
+      .room-bottom {
+        width: 100%;
+        margin-bottom: 5px;
+        font-size: 14px;
+        text-align: center;
+        position: absolute;
+        bottom: 0px;
+        left: 10px
+      }
+      .room-online {
+        background-color: powderblue;
+      }
+      .room-offline {
+        border: 1px solid black;
+        box-shadow: 5px 5px 5px black;
+      }
+      .room-active {
+        border: 1px solid orange;
+        box-shadow: 5px 5px 5px orange;
+      }
+      .room-alert {
+        border: 1px solid red;
+        box-shadow: 5px 5px 5px red;
+      }
+      .room-secure-lights-off {
+        background: radial-gradient(lightblue, steelblue);
+      }
+      .room-secure-lights-on {
+        background: radial-gradient(linen 15%, palegoldenrod 35%, steelblue);
+      }
+      .room-unsecure-lights-off {
+        background: radial-gradient(linen, crimson);
+      }
+      .room-unsecure-lights-on {
+        background: radial-gradient(linen 15%, palegoldenrod 35%, crimson);
+      }
+      .device-inactive {
+        box-shadow: 5px 5px 5px white;
+      }
+      .device-active {
+        border: 1px solid orange;
+        background: radial-gradient(linen, crimson);
+        box-shadow: 5px 5px 5px orange;
+      }
+      .low-battery {
+        box-shadow: 5px 5px 5px red;
+      }
+      .critical-battery {
+        box-shadow: 5px 5px 5px red;
+      }
+      .device-offline {
+        background: lightgrey;
+        box-shadow: 5px 5px 5px black;
+      }
+      .device-block {
+        box-shadow: 5px 5px 5px black;
+      }
+      .device-unsecure {
+        background: radial-gradient(linen, crimson);
+      }
+      .device-lights {
+        background: radial-gradient(linen 15%, palegoldenrod 35%, steelblue);
+      }
+      .device-presence-Away {
+        background: radial-gradient(lightgrey, lightblue);
+      }
+      .device-label {
+        width: 90%;
+        margin: auto;
+        margin-top: 8px;
+        font-size: 18px;
+        text-align: center;
+      }
+      .device-main {
+        position: absolute;
+        top: 60px;
+        height: 60px;
+        width: 100%;
+        overflow: hidden;
+        font-size: 24px;
+        text-align: center;
+      }
+      .device-lower-main {
+        position: absolute;
+        top: 125px;
+        height: 45px;
+        width: 100%;
+        overflow: hidden;
+        font-size: 20px;
+        text-align: center;
+      }
+      .device-bottom {
+        margin-bottom: 5px;
+        width: 90%;
+        font-size: 14px;
+        text-align: center;
+        position: absolute;
+        bottom: 0px;
+        left: 10px
+      }
+      .main-icon {
+        font-size: 32px;
+      }
+      .fa-battery-full {
+        color: green;
+        font-size: 16px;
+      }
+      .fa-battery-three-quarters {
+        color: green;
+        font-size: 16px;
+      }
+      .fa-battery-half {
+        color: yellowgreen;
+        font-size: 16px;
+      }
+      .fa-battery-quarter {
+        font-size: 16px;
+        color: khaki;
+      }
+      .fa-battery-empty {
+        font-size: 16px;
+        color: red;
+      }
+      .cooling {
+        background: radial-gradient(lightyellow, lightskyblue);
+      }
+      .heating {
+        background: radial-gradient(lightyellow, lightpink);
+      }
+      
+      .form-background {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        background-color: rgba(169, 200, 236, 0.85);
+      }
+      .form-popup {
+        position: relative;
+        top: 200px;
+        max-width: 300px;
+        margin: auto;
+        border: 3px solid #f1f1f1;
+        z-index: 9;
+        color: black;
+        font-size: 18px;
+      }
+      .form-container {
+        max-width: 300px;
+        padding: 10px;
+        background-color: white;
+      }
+      .btn {
+        margin: 20px;
+      }
+      .navbar {
+        background-color: rgb(35,35,35);
+        border-top: 1px solid rgb(65,65,65);
+        overflow: hidden;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+      }
+      .nav-item-x {
+        display: block;
+        color: white;
+        text-align: center;
+        padding: 10x;
+        min-width: 100px;
+        margin: 10px 20px 15px 32px;
+        text-decoration: none;
+        cursor: pointer;
+        font-size: 24px;
+      }
+      .nav-item {
+        display: block;
+        color: white;
+        text-align: center;
+        padding: 14px 16px;
+        min-width: 50px;
+        text-decoration: none;
+        cursor: pointer;
+        font-size: 24px;
+      }
+      .nav-item-left {
+        float: left;
+      }
+      .nav-item-right {
+        float: right;
+      }
+      .nav-item-x:hover {
+        background-color: #ddd;
+        color: black;
+      }
+
+      .active-menu {
+        background-color: #04AA6D;
+        color: white;
+      }
+      .user-menu {
+          display: none;
+          position: absolute;
+          cursor: pointer;
+          top: 45px;
+          left 45px;
+          padding-bottom: 10px;
+          background-color: rgba(0,75,50,0.8);
+          min-width: 160px;
+          box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+          z-index: 1;
+        }
+        .user-item {
+          text-decoration: none;
+          color: white;
+          cursor: pointer;
+          font-size: 24px;
+        }
+        .show {
+          display: block;
+        }
+
+        @media screen and (max-width: 850px) {
+          #devices {
+            width: 100%;
+          }
+          .room {
+            width: 31%;
+          }
+          .presence {
+            width: 31%;
+          }
+          .device {
+            width: 22%;
+          }
+        }
+      
+        @media screen and (max-width: 650px) {
+          #devices {
+            width: 100%;
+          }
+            .room {
+            width: 30%;
+          }
+          .presence {
+            width: 30%;
+          }
+          .device {
+            width: 29%;
+          }
+          .room-name {
+            font-size: 18px;
+          }
+          .room-main {
+            top: 15px;
+            margin-top: 10px;
+            font-size: 18px;
+          }
+          .room-bottom {
+            margin-bottom: 0px;
+            font-size: 14px;
+          }
+          .presence-name {
+            margin-top: 20px;
+            font-size: 18px;
+          }
+        }      
+
+        @media screen and (max-width: 450px) {
+          .device {
+            width: 44%;
+          }
+          .scene {
+            width: 44%;
+          }
+          .scene-name {
+            font-size: 20px;
+          }
+        }
+
+    </style>
+  </head>
+  <body>
+    <div class="overlay" onclick="overlayOff()"></div>
+    <div id="header">
+      <div class="dropdown">
+        <i class="fas fa-user" id="user" onclick="displayUserMenu()">  {{ current_user.name }}</i>
+          <div class="user-menu">
+            <a class="user-item" href="/logout">Logout</a>
+          </div>
+      </div>
+      <i class="fas fa-angle-double-left" id="header-back-button" onclick="updateDisplay(true)"></i>
+      <span id="header-label" class="disconnected"></span>
+      {% if current_user.role != 'Guest' %}
+      <span><i class="fas fa-sync" id="header-refresh-button" onclick="refresh()"></i></span>
+      {% endif %}
+    </div>
+    <div id="devices" class="display-rooms"></div>
+    <p><button id="back-button" type="button" onclick="updateDisplay(true)">Back</button></p>      
+    <div class="form-background" id="form-background">
+      <div class="form-popup" id="myForm"></div>
+    </div>
+    <div class="navbar" id="navbar">
+      <a id="menu-home" class="nav-item nav-item-left" onclick="updateDisplay(true)"><i class="fas fa-home"></i></a>
+      <a id="menu-scenes" class="nav-item nav-item-left" onclick="displayScenes()">Scenes</a>
+      {% if current_user.role == 'Admin' %}
+      <a href="/admin" target="_blank"><i class="nav-item nav-item-right fas fa-cog"></i></a>
+      {% endif %}
+    </div>
+    
+  <script>
+  // Send a system ping every 15 minutes
+  setInterval(pingBack, (1000*60*15));
+  
+  function pingBack() {
+    socket.emit('pingBack');
+  }
+  
+  var locationData;
+	var protocol = window.location.protocol;
+  const DOW_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  function displayUserMenu() {
+    document.querySelector(".user-menu").classList.toggle("show");
+  }
+  
+  function bodyClick() {
+  }
+  
+  document.addEventListener("click", function(event) {
+    if (!event.target.matches("#user")) {
+      document.querySelector(".user-menu").classList.remove("show");
+    }
+  });
+  
+	function getTimeDisplay(dt) {
+		var time_str = "";
+		var hrs = "";
+		var mins = "";
+		var ap = "AM";
+		var val = 0;
+		
+		val = dt.getHours();
+		if (val >=12) {
+			ap = "PM";
+			if (val > 12) {
+				val -= 12;
+			}
+		}
+		else if (val == 0) {
+			val = 12;
+		}
+		hrs = val.toString();
+		
+		val = dt.getMinutes();
+		mins = ("0" + val).slice(-2);
+		
+		time_str = hrs + ":" + mins + " " + ap;
+		return time_str;
+	}
+  
+  var overlay = document.querySelector(".overlay");
+  function overlayOff() {
+    overlay.style.display = "none";
+  }
+
+  var socket = io.connect(protocol + '//' + document.domain + ':' + location.port, {
+		reconnection: true,
+		reconnectionDelay: 1000,
+		reconnectionDelayMax: 10000,
+		reconnectionAttempts: 99999
+	});
+
+	socket.on('conn', function(msg) {
+		var dt = new Date();
+		var dtDisp = DOW_SHORT[dt.getDay()] + " " + getTimeDisplay(dt);
+		var data = JSON.parse(msg);
+		console.log(dtDisp + " - " + data.status);
+    headerLabel.classList.remove("disconnected");
+
+		const d = new Date();
+		d.setTime(d.getTime() + (1*24*60*60*1000));
+		let expires = "expires=" + d.toUTCString();
+    document.cookie = "username" + "=" + "jeff" + ";" + expires + ";path=/;host;secure;";
+	});
+  
+  socket.on('disconnect', function(msg) {
+    console.log("Disconnected!");
+    headerLabel.classList.add("disconnected");
+  });
+
+  socket.on('pingRcv', function() {
+    console.log("pingRcv");
+  });
+  
+	socket.on('location_data', function(msg) {
+		console.log("location-data");
+    
+    // If nothing is passed to location-data, user is no longer authorized to view dashboard.  Blank it out!
+    if (!msg) {
+        socket.emit('disconn');
+        socket = null;
+        document.body.innerHTML = "<div>Not Authorized!<br />Contact System Administrator!</div>";
+    } else {
+      var dt = new Date();
+      var dtDisp = DOW_SHORT[dt.getDay()] + " " + getTimeDisplay(dt);
+      locationData = JSON.parse(msg);
+//      console.log(JSON.stringify(locationData, null, 2));
+      buildDisplay();
+      overlay.style.display = "none";
+    }
+	});
+
+	socket.on('presence_chg', function(msg) {
+		console.log("presence_chg: " + msg);
+    data = JSON.parse(msg);
+		presenceChange(data);
+    overlay.style.display = "none";
+	});
+
+	socket.on('device_chg', function(msg) {
+		console.log("device_chg: " + msg);
+		data = JSON.parse(msg);
+    deviceChange(data);
+    overlay.style.display = "none";
+	});
+
+  function refresh() {
+    overlay.style.display = "block";
+    socket.emit("refresh");
+  }
+    
+  Array.prototype.sortOn = function(key){
+      this.sort(function(a, b){
+          if(a[key] < b[key]){
+              return -1;
+          }else if(a[key] > b[key]){
+              return 1;
+          }
+          return 0;
+      });
+  }
+
+class Device {
+  constructor(device) {
+    this.device = device;
+    this.resetDevice();
+    this.html = this.buildHtml();
+  }
+  log() {
+    console.log(this.device);
+  }
+  resetDevice() {
+    this.offline = false;
+    this.block = false;
+    this.temperature = "";
+    this.humidity = "";
+    this.battery = "";
+    this.unsecure = "";
+    this.active = "";
+    this.lights = "";  
+    this.presence = false;
+    this.presenceState = "";
+    this.icon = "";
+  }
+  getStatus() {
+    var status = {"offline": this.offline, "temperature": this.temperature, "humidity": this.humidity, "battery": this.battery,
+                  "unsecure": this.unsecure, "active": this.active, "lights": this.lights};
+    return status;
+  }
+  getHtml() {
+    return this.html;
+  }
+  getDevice(deviceId) {
+    if (deviceId === this.device.deviceId) {
+      return this;
+    }
+    return null;
+  }
+  update(deviceData) {
+    this.device.capabilities.forEach(capability => {
+      if (capability.id === deviceData.capability) {
+        capability.state = deviceData.value;
+        this.html = this.buildHtml();
+        return true;
+      }
+      return false;
+    });
+  }
+  buildHtml() {
+    var elements = [];
+    var topSection = `<div class="device-label">${this.device.label}</div>`;
+    var mainSection = "";
+    var lowerMainSection = "";
+    var bottomSection = "";
+    var temp = null;
+    var humid = null;
+    var thermostateMode = "";
+    var thermostatOperatingState = "";
+    var coolingSetpoint = "";
+    var heatingSetpoint = "";
+    var fanMode = "";
+    var shadow =  ""; 
+    this.icon = this.device.icon;
+    this.offline = this.device.health == "OFFLINE" ? true : false;
+    this.block = false;
+    {% if current_user.role == "Guest" %}
+    if (!this.device.guest_access) {
+      console.log("Guest Access: " + this.device.label);
+      this.block = true;
+    }
+    {% endif %}
+    var onclick = this.block ? "" : "onclick='deviceClick(this)'";
+    this.device.capabilities.sortOn("seq");
+    this.device.capabilities.forEach(capability => {
+      var capData = "";
+      var capHtml = "";
+      switch (capability.id) {
+        case "switch":
+          var iconClass;
+          if (capability.state == "on" && !this.offline) {
+            this.lights = true;
+            iconClass = this.icon ? this.icon : "far fa-lightbulb";
+          } else {
+            iconClass = this.icon ? this.icon : "far fa-lightbulb";
+          }
+          iconClass += " main-icon"
+          var icon = `<i class="${iconClass}"></i>`;
+          capHtml = `<div id="${this.device.deviceId}" class="device-main ${capability.id} ${capability.state}" ${onclick}>${icon}</div>`;
+          elements.push({"type": "switch", "html": capHtml});
+          break;
+ 
+        case "lock":
+          var iconClass;
+          if (capability.state == "unlocked" && !this.offline) {
+            this.unsecure = true;
+            iconClass = "fas fa-lock-open";
+          } else {
+            iconClass = "fas fa-lock";
+          }
+          iconClass += " main-icon"
+          var icon = `<i class="${iconClass}"></i>`;
+          capHtml = `<div id="${this.device.deviceId}" class="device-main ${capability.id} ${capability.state}" ${onclick}>${icon}</div>`;
+          elements.push({"type": "lock", "html": capHtml});
+          break;
+
+        case "doorControl":
+          var iconClass;
+          if (capability.state == "open" && !this.offline) {
+            this.unsecure = true;
+            iconClass = "fas fa-door-open";
+          } else {
+            iconClass = "fas fa-door-closed";
+          }
+          iconClass += " main-icon"
+          var icon = `<i class="${iconClass}"></i>`;
+          capHtml = `<div id="${this.device.deviceId}" class="device-main ${capability.id} ${capability.state}" ${onclick}>${icon}</div>`;
+          elements.push({"type": "doorControl", "html": capHtml});
+          break;
+        
+        case "contactSensor":
+        var iconClass;
+          if (capability.state == "open" && !this.offline) {
+            this.unsecure = true;
+            iconClass = "fas fa-door-open";
+          } else {
+            iconClass = "fas fa-door-closed";
+          }
+          iconClass += " main-icon"
+          var icon = `<i class="${iconClass}"></i>`;
+          capHtml = `<div class="device-main ${capability.id} ${capability.state}">${icon}</div>`;
+          elements.push({"type": "contactSensor", "html": capHtml});
+          break;
+
+        case "motionSensor":
+        var iconClass;
+          if (capability.state == "active" && !this.offline) {
+            this.active = true;
+            iconClass = "fas fa-running";
+          } else {
+            iconClass = "fas fa-running";
+          }
+          iconClass += " main-icon"
+          var icon = `<i class="${iconClass}"></i>`;
+          capHtml = `<div class="device-main ${capability.id} ${capability.state}">${icon}<br />${capability.state[0].toUpperCase() + capability.state.substring(1)}</div>`;
+          elements.push({"type": "motionSensor", "html": capHtml});
+          break;
+      
+        case "presenceSensor":
+          var pres = capability.state == "present" ? "Home" : "Away";
+          this.presence = true;
+          this.presenceState = pres;
+          capHtml = `<div class="device-main ${capability.id} ${capability.state}" ${onclick}>${pres}</div>`;
+          elements.push({"type": "presenceSensor", "html": capHtml});
+          break;
+      
+        case "thermostatMode":
+          thermostateMode = capability.state;
+          capHtml = "";
+          elements.push({"type": "thermostatMode", "html": capHtml});
+          break;
+
+        case "thermostatOperatingState":
+          thermostatOperatingState = capability.state;
+          if (["heating","cooling"].includes(capability.state) && !this.offline) {
+            this.active = true;
+          }
+          break;
+
+        case "thermostatCoolingSetpoint":
+          coolingSetpoint = capability.state;
+          break;
+
+        case "thermostatHeatingSetpoint":
+          heatingSetpoint = capability.state;
+          break;
+
+        case "thermostatFanMode":
+          fanMode = capability.state;
+          break;
+
+        case "temperatureMeasurement":
+          temp = capability.state;
+          this.temperature = Math.round(temp);
+          break;
+
+        case "relativeHumidityMeasurement":
+          humid = capability.state;
+          this.humidity = humid;
+          break;
+
+        case "battery":
+          var iconClass;
+          var battery_level = parseInt(capability.state);
+          if (battery_level >= 80) {
+            iconClass = "fas fa-battery-full";
+          } else if (battery_level >= 60) {
+            iconClass = "fas fa-battery-three-quarters";
+          } else if (battery_level >= 40) {
+            iconClass = "fas fa-battery-half";
+          } else if (battery_level >= 30) {
+            iconClass = "fas fa-battery-quarter";
+          } else {
+            iconClass = "fas fa-battery-empty";
+          }
+          var icon = `<i class="${iconClass}"></i>`;
+
+          bottomSection = `<div class="device-bottom ${capability.id} ${capability.state}">${icon} ${capability.state}%</div>`;
+          if (!this.offline) {
+            this.battery = battery_level;
+          }
+          break;
+
+        case "switchLevel":
+          mainSection += `<br /><div id="level-${this.device.deviceId}" class="device-lower-main switch-level">${capability.state}%</div>`;
+          bottomSection = `<div class="device-bottom ${capability.id} ${capability.state} switch-level"><input class="slider" 
+                           id="${this.device.deviceId}-${capability.id}" data-deviceId="${this.device.deviceId}" onchange="sliderChange(this)" 
+                           type="range" min="1" max="100" value="${capability.state}" 
+                           oninput="setSliderValue(this)"></div>`;
+        break;
+
+        default:
+          console.log("Unknown capability: " + capability.id);
+          break;
+      }
+    });
+    elements.forEach(element => {
+      if (element.type == "lock") {
+        mainSection = element.html;
+      } else if (element.type == "doorControl") {
+          mainSection = element.html;
+      } else if (element.type == "contactSensor") {
+        if (!mainSection) {
+          mainSection = element.html;
+        } else {
+          lowerMainSection = element.html;
+        }
+      } else if (element.type == "motionSensor") {
+        if (!mainSection) {
+          mainSection = element.html;
+        } else {
+          lowerMainSection = element.html;
+        }
+      } else if (element.type == "switch") {
+        if (!mainSection) {
+          mainSection = element.html;
+        } else {
+          lowerMainSection = element.html;
+        }
+      } else if (element.type == "thermostatMode") {
+        if (!mainSection) {
+          var setpoint = thermostateMode == "cool" ? ": " + coolingSetpoint + "&#176" : (thermostateMode == "heat" ? ": " + heatingSetpoint + "&#176" : "");
+          mainSection = `<div id="${this.device.deviceId}" class="device-main thermostatMode ${thermostateMode}" ${onclick}>${thermostateMode[0].toUpperCase() + thermostateMode.substring(1)} ${setpoint}<br />`;
+          mainSection += `${thermostatOperatingState[0].toUpperCase() + thermostatOperatingState.substring(1)}</div>`;
+        } 
+      } else if (element.type == "presenceSensor") {
+        if (!mainSection) {
+          mainSection = element.html;
+        } else {
+          lowerMainSection = element.html;
+        }
+      }        
+    });
+    if (!mainSection) {
+        if (temp && humid) {
+          mainSection = `<div class="device-main temperatureMeasurement humidityMeasurement">${this.temperature}&#176<br />${humid}%</div>`;
+        } else if (temp) {
+          mainSection = `<div class="device-main temperatureMeasurement">${this.temperature}&#176</div>`;
+        }else if (humid) {
+          mainSection = `<div class="device-main humidityMeasurement">${humid}%</div>`;
+        }
+    } else if (!lowerMainSection) {
+      if (temp && humid) {
+          lowerMainSection = `<div class="device-lower-main temperatureMeasurement humidityMeasurement">${this.temperature}&#176 - ${humid}%</div>`;
+        } else if (temp) {
+          lowerMainSection = `<div class="device-lower-main temperatureMeasurement">${this.temperature}&#176</div>`;
+        }else if (humid){
+          lowerMainSection = `<div class="device-lower-main humidityMeasurement">${humid}%</div>`;
+        }
+    }        
+
+    var state = this.offline ? "device-offline" : 
+                (this.unsecure ? "device-unsecure" : (this.lights ? "device-lights" : 
+                (this.active ? "device-active" : (this.presence ? "device-presence-" + this.presenceState : "device-inactive"))));
+                
+    var blocked = this.block ? "device-block" : "";
+
+    var html = `<div id="${this.device.deviceId}" class="device ${state} ${thermostatOperatingState} ${blocked}">`;
+    html += topSection + mainSection + lowerMainSection + bottomSection;
+    html += `</div>`;
+    return html;
+  }
+  hasCapability(capability) {
+    for (var x = 0; x < this.device.capabilities.length; x++) {
+      if (this.device.capabilities[x].id === capability) {
+        return this.device.capabilities[x];
+      }
+    }
+    return null;
+  }
+  
+  getState(capability) {
+    for (var x = 0; x < this.device.capabilities.length; x++) {
+      if (this.device.capabilities[x].id === capability) {
+        return this.device.capabilities[x];
+      }
+    }
+    return null;
+  }
+
+  deviceClicked(deviceId) {
+    if (this.device.deviceId === deviceId) {
+      var capability = null;
+      if ( capability = this.hasCapability("doorControl")) {
+        updateDevice(deviceId, capability.id, capability.state == 'open' ? 'close' : 'open');
+        return true;
+      } else if (capability = this.hasCapability("lock")) {
+        updateDevice(deviceId, capability.id, capability.state == 'locked' ? 'unlock' : 'lock');
+        return true;
+      } else if (capability = this.hasCapability("switch")) {
+        updateDevice(deviceId, capability.id, capability.state == 'on' ? 'off' : 'on');
+        return true;
+      } else if (capability = this.hasCapability("thermostatMode")) {
+        var heat = this.hasCapability("thermostatHeatingSetpoint");
+        var cool = this.hasCapability("thermostatCoolingSetpoint");
+          var popup = `<form name="thermostat-form" action="" class="form-container" onsubmit="return saveThermostatSettings()">
+            <h3 style="font-size:20px;text-align:center;margin-top: 0px;">${this.device.label}</h3>
+
+            <input type="text" name="device-id" value="${deviceId}" hidden>
+            <label for="modes"><b>Mode: </b></label>
+            <select name="modes" id="modes">
+              <option value="off" ${capability.state == "off" ? "selected" : ""}>Off</option>
+              <option value="cool" ${capability.state == "cool" ? "selected" : ""}>Cool</option>
+              <option value="heat" ${capability.state == "heat" ? "selected" : ""}>Heat</option>
+            </select>
+            <br />
+            <br />
+            <label for="heat-setpoint"><b>Heating Temperature:</b></label>
+            <input type="number" name="heat-setpoint" required value="${heat.state}" min="50" max="80">
+            <br />
+            <br />
+            <label for="cool-setpoint"><b>Cooling Temperature:</b></label>
+            <input type="number" name="cool-setpoint" required value="${cool.state}" min="50" max="80">
+            <br />
+            <br /> 
+            <button type="submit" class="btn">Save</button>
+            <button type="button" class="btn cancel" onclick="closeForm()">Cancel</button>
+          </form>`;
+          document.getElementById("myForm").innerHTML = popup;
+          document.getElementById("form-background").style.display = "block";
+        return true;
+      } else {
+        console.log("Nothing to do!");
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+function setSliderValue(obj) {
+  var deviceId = obj.getAttribute("data-deviceId");
+  var parent = document.querySelector("#level-" + deviceId);
+  parent.innerText = obj.value + "%";
+  parent.style.color = "red";
+}
+
+function sliderChange(obj) {
+  var slider = document.getElementById(obj.getAttribute("id"));
+  var level = document.getElementById("level-" + obj.getAttribute("data-deviceId"));
+  var deviceId = obj.getAttribute("data-deviceId");
+  level.innerHTML = slider.value + "%";
+  updateDevice(deviceId, "switchLevel", slider.value);
+};
+
+function updateDevice(deviceId, capabilityId, state) {
+  var dJson = {"deviceId": deviceId, "capability": capabilityId, "state": state};
+//  console.log("dJson: " + dJson);
+  socket.emit('update-device', dJson);
+  return false;
+}
+
+function saveThermostatSettings() {
+  let tForm = document.forms["thermostat-form"];
+  let deviceId = tForm["device-id"].value;
+  let mode = tForm["modes"].value;
+  let heatingSetpoint = tForm["heat-setpoint"].value;
+  let coolingSetpoint = tForm["cool-setpoint"].value;
+  
+  var tJson = {"deviceId": deviceId, "commands": [
+    {"capability": "thermostatMode", "value": mode}, 
+    {"capability": "thermostatHeatingSetpoint", "value": heatingSetpoint}, 
+    {"capability": "thermostatCoolingSetpoint", "value":  coolingSetpoint}
+    ]};
+
+//  console.log("tJson: " + JSON.stringify(tJson));
+
+  socket.emit('update-thermostat', tJson);
+
+  closeForm();
+  return false;
+}
+
+function closeForm() {
+  document.getElementById("form-background").style.display = "none";
+}
+
+class Room {
+  constructor(room) {
+    this.room = room;
+    this.resetRoom();
+    this.html = this.buildHtml();
+  }
+  resetRoom() {
+    this.offline = "room-online";
+    this.temperature = "";
+    this.humidity = "";
+    this.battery = "";
+    this.unsecure = "room-secure";
+    this.active = "";
+    this.lights = "room-lights-off";
+    this.devices = [];
+  }
+  getName() {
+    return this.room.name;
+  }
+  getID() {
+    return this.room.roomId;
+  }
+  deviceClick(deviceId) {
+    for (var x = 0; x < this.devices.length; x++) {
+      if (this.devices[x].deviceClicked(deviceId)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  updateDevice(deviceData) {
+    var updated = false;
+    this.devices.forEach(device => {
+      if (device.getDevice(deviceData.deviceId)) {
+        device.update(deviceData);
+        this.resetRoom();
+        this.html = this.buildHtml();
+        updated = true;
+      }
+    });
+    return updated;
+  }
+  getHtml() {
+    if (!this.devices.length) {
+      return "";
+    }
+    return this.html;
+  }
+  buildHtml() {
+    this.room.devices.sortOn("seq");
+    this.room.devices.forEach(device => {
+      var dev = new Device(device);
+      this.devices.push(dev);
+      var status = dev.getStatus();
+      if (status.offline) {
+        this.offline = "room-offline";
+      }
+      if (status.temperature) {
+        this.temperature = status.temperature;
+      }
+      if (status.humidity) {
+        this.humidity = status.humidity;
+      }
+      if (status.battery) {
+        if (!this.battery) {
+          this.battery = status.battery;
+        } else if (status.battery < this.battery) {
+          this.battery = status.battery;
+        }
+      }
+      if (status.unsecure) {
+        this.unsecure = "room-unsecure";
+      }
+      if (status.active) {
+        this.active = status.active;
+      }
+      if (status.lights) {
+        this.lights = "room-lights-on";
+      }
+    });
+
+    var isUnsecure = this.unsecure == "room-unsecure" ? true : false;
+    var isLights = this.lights == "room-lights-on" ? true : false;
+    var secureClass = "room-secure-lights-off";
+    if (isUnsecure || isLights) {
+      if (isUnsecure && !isLights) {
+        secureClass = "room-unsecure-lights-off";
+      } else if (!isUnsecure && isLights) {
+        secureClass = "room-secure-lights-on";
+      } else {
+        secureClass = "room-unsecure-lights-on"
+      }
+    }
+
+    var tempData = "";
+    if (this.temperature && this.humidity) {
+      tempData = `${this.temperature}&#176 - ${this.humidity}%`;
+    } else if (this.temperature) {
+      tempData = `${this.temperature}&#176`;
+    }else if (this.humidity) {
+      tempData = `${this.humidity}%`;
+    }
+    var mainHtml = `<div class="room-main">${tempData}</div>`;
+
+    var bottomSection = "";
+    var iconClass = "";
+    if (this.battery) {
+      var battery_level = parseInt(this.battery);
+      if (battery_level >= 80) {
+        iconClass = "fas fa-battery-full";
+      } else if (battery_level >= 60) {
+        iconClass = "fas fa-battery-three-quarters";
+      } else if (battery_level >= 40) {
+        iconClass = "fas fa-battery-half";
+      } else if (battery_level >= 30) {
+        iconClass = "fas fa-battery-quarter";
+      } else {
+        iconClass = "fas fa-battery-empty";
+      }
+      var icon = `<i class="${iconClass}"></i>`;
+
+      bottomSection = `<div class="room-bottom">${icon} ${battery_level}%</div>`;
+    }
+
+    var stateClass = `${this.offline} ${this.active ? "room-active" : ""} ${iconClass.includes("battery-empty") ? "room-alert" : ""} ${secureClass}`;
+
+    var html = `<div id="${this.room.roomId}" class="room ${stateClass}" onclick="roomClick(this)">`;
+    html += `<div class="room-name">${this.room.name}</div>`;
+    html += `<div class="room-main">${mainHtml}</div>`;
+    html += bottomSection;
+    html += `</div>`;
+    return html;
+  }
+  displayDevices() {
+    var html = "";
+    this.devices.forEach(device => {
+      html += device.getHtml();
+    });
+    return html;
+  }
+}
+
+class Presence {
+  constructor(presence) {
+    this.presence = presence;
+    this.state = null;
+    this.html = this.buildHtml();
+  }
+  getHtml() {
+    return this.html;
+  }
+  buildHtml() {
+    var presenceSensor = null;
+    this.presence.capabilities.forEach(capability => {
+      if (capability.id == "presenceSensor") {
+        presenceSensor = capability;
+      }
+    });
+    this.state = presenceSensor.state == "present" ? "Home" : "Away";
+    var html = `<div id="${this.presence.deviceId}" class="presence ${this.state}">`;
+    html += `<div class="presence-name">${this.presence.label}<br />${this.state}</div>`;
+    html += `</div>`;
+    return html;
+  }
+  updateDevice(presenceData) {
+    var status = false;
+    if (this.presence.deviceId === presenceData.deviceId) {
+      this.presence.capabilities.forEach(capability => {
+        if (capability.id === presenceData.capability) {
+          capability.state = presenceData.value;
+          this.html = this.buildHtml();
+          status = true;
+        }
+      });
+    }
+    return status;
+  }  
+}
+
+class Scene {
+  constructor(scene) {
+    this.scene = scene;
+    this.block = false;
+    {% if current_user.role == 'Guest' %}
+    if (!this.scene.guest_access) {
+      this.block = true;
+    }
+    {% endif %}
+    this.html = this.buildHtml();
+  }
+  getHtml() {
+    return this.html;
+  }
+  buildHtml() {
+    var blocked = this.block ? "scene-block" : "";
+    var onclick = this.block ? "" : "onclick='sceneClick(this)'";
+    var html = `<div id="${this.scene.scene_id}" data-scene="${this.scene.name}" class="scene ${blocked}" ${onclick}>`;
+    html += `<div class="scene-name">${this.scene.name}</div>`;
+    html += "</div>";
+    return html;
+  }
+}
+
+function sceneClick(scene) {
+  var sceneId = scene.getAttribute("ID");
+  var sceneName = scene.getAttribute("data-scene");
+  
+  if (confirm("Run Scene?\n" + sceneName)) {
+    socket.emit('run-scene', {"scene_id": sceneId})
+  }
+}
+
+function roomClick(room) {
+  var roomId = room.getAttribute("ID");
+
+  for (var x = 0; x < rooms.length; x++) {
+    if (rooms[x].getID() == roomId) {
+      roomIdx = x;
+      displayArea.classList.add("display-devices");
+      displayArea.classList.remove("display-rooms");
+      displayArea.classList.remove("display-scenes");
+      userLabel.style.display = "none";
+      var hbb = getComputedStyle(headerBackButton);
+      var hbbDisplay = hbb.getPropertyValue("--display");
+//      console.log("--display: " + hbbDisplay);
+      headerBackButton.style.display = hbbDisplay; //"block";
+      backButton.style.display = "block";
+      headerLabel.innerHTML = rooms[x].room.name;
+      displayArea.innerHTML = rooms[x].displayDevices();
+      break;
+    }
+  }
+}
+
+function deviceClick(device) {
+  var deviceId = device.getAttribute("ID");
+  for (var x = 0; x < rooms.length; x++) {
+    if (rooms[x].deviceClick(deviceId)) {
+      break;
+    }
+  }
+}
+
+var roomIdx = 0;
+var rooms = [];
+var presence = [];
+var scenes = [];
+var userLabel = document.getElementById("user");
+var headerBackButton = document.getElementById("header-back-button");
+var hbb = getComputedStyle(headerBackButton);
+var hbbDisplay = hbb.getPropertyValue("--display");
+var headerLabel = document.getElementById("header-label");
+var displayArea = document.getElementById("devices");
+var backButton = document.getElementById("back-button");
+
+function buildDisplay() {
+  rooms = [];
+  presence = [];
+  scenes = [];
+
+  locationData.rooms.sortOn("seq");
+  locationData.rooms.forEach(roomItem => {
+    {% if current_user.role == 'Guest' %}
+    if (roomItem.guest_access == 1) {
+      room = new Room(roomItem);
+      rooms.push(room);
+    }
+    {% else %}
+    room = new Room(roomItem);
+    rooms.push(room);
+    {% endif %}
+  });
+
+  if (locationData.presence) {
+    locationData.presence.sortOn("seq");
+    locationData.presence.forEach(presItem => {
+      pres = new Presence(presItem);
+      presence.push(pres);
+    });
+  }
+
+  if (locationData.scenes) {
+    locationData.scenes.sortOn("seq");
+    locationData.scenes.forEach(sceneItem => {
+      scene = new Scene(sceneItem);
+      scenes.push(scene);
+    });
+  }
+  updateDisplay();
+}
+
+function updateDisplay(roomDisplay=false) {
+  if (roomDisplay) {
+    displayArea.classList.add("display-rooms");
+    displayArea.classList.remove("display-devices");
+    displayArea.classList.remove("display-scenes");
+  }
+  if (displayArea.classList.contains("display-scenes")) {
+    document.querySelector("#menu-scenes").classList.add("active-menu");
+    document.querySelector("#menu-home").classList.remove("active-menu");
+  } else {
+    document.querySelector("#menu-scenes").classList.remove("active-menu");
+    document.querySelector("#menu-home").classList.add("active-menu");
+  }
+  if (displayArea.classList.contains("display-rooms")) {
+    userLabel.style.display = "block";
+    headerBackButton.style.display = "none";
+    headerLabel.innerHTML = locationData.location.name;
+    backButton.style.display = "none";
+    displayArea.innerHTML = "";
+    rooms.forEach(room => {
+      displayArea.innerHTML += room.getHtml();
+    });
+
+    presence.forEach(pres => {
+      displayArea.innerHTML += pres.getHtml();
+    });
+    
+  } else if (displayArea.classList.contains("display-devices")) {
+    userLabel.style.display = "none";
+    var hbb = getComputedStyle(headerBackButton);
+    var hbbDisplay = hbb.getPropertyValue("--display");
+    headerBackButton.style.display = hbbDisplay; //"block";
+    headerLabel.innerHTML = rooms[roomIdx].room.name;
+    backButton.style.display = "block";
+    displayArea.innerHTML = rooms[roomIdx].displayDevices();
+  } else if (displayArea.classList.contains("display-scenes")) {
+    displayArea.innerHTML = "";
+    scenes.forEach(scene => {
+      displayArea.innerHTML += scene.getHtml(); 
+    });  
+  }
+}
+
+function deviceChange(deviceData) {
+  rooms.forEach(room => {
+    if (room.updateDevice(deviceData)) {
+      updateDisplay();
+    }
+  });
+}
+
+function presenceChange(presenceData) {
+  presence.forEach(pres => {
+    if (pres.updateDevice(presenceData)) {
+      updateDisplay();
+    }
+  });
+}
+
+function displayScenes() {
+    displayArea.classList.add("display-scenes");
+    displayArea.classList.remove("display-devices");
+    displayArea.classList.remove("display-rooms");
+    updateDisplay();
+}
+
+</script>
+  </body>
+</html> 

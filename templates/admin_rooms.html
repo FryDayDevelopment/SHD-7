@@ -1,0 +1,417 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+  <div class="content">
+  <h1>Rooms Configuration</h1>
+  <h6>Update 'Seq' to change display sequence<br />
+  Update 'Visible' to show/hide items or groups<br />
+  Update 'Guest Access' to allow Guest Users access</h6>
+  </div>
+  
+  <div class="location-data" style="text-align:left !important;">
+    <div>Location Name: [<span style="background-color: white;">{{ configData.location.name }}</span>]</div>
+    <div>Location Nickname: [<span class="unchanged" id="location-nickname">{{ configData.location.nickname }}</span>] <span><i class='fas fa-edit unchanged' id="edit-nickname" style='font-size: 20px;' onclick='editNickname()'></i></span></div>
+    <div>Location Email: [<span class="unchanged" id="location-email">{{ configData.location.email }}</span>] <span><i class='fas fa-edit unchanged' id="edit-email" style='font-size: 20px;' onclick='editEmail()'></i></span></div>
+  </div>
+  <table class="container" id="room-table">
+      <tr class="room-header">
+          <th></th>
+          <th>Room</th>
+          <th>Seq</th>
+          <th>Visible</th>
+          <th>Guest Access</th>
+          <th></th>
+          <th></th>
+      </tr>
+  {% for room in configData.rooms %}
+    {% set roomIdx = loop.index0 %}
+    {% if room.visible != 1 %}
+        {% set visClass = "not-visible" %}
+    {% else %}
+        {% set visClass = "" %}
+    {% endif %}
+    <tr class="room {{ visClass }}" id="room-{{ loop.index0 }}">
+        <td style='cursor:pointer;' onclick='toggle("{{room.name }}")'> +/- </td>
+        <td>{{ room.name }}</td>
+        <td style="text-align:center; min-width: 70px;">
+            <input type="number" id="seq-{{ room.room_id }}" min="0" max="99" value="{{ room.seq }}">
+        </td>
+        <td style="text-align:center;">
+            <input type="checkbox" id="visible-{{ room.room_id }}" name="visible-{{ room.room_id }}" value="visible" {{ 'checked' if room.visible == 1 else null }}>
+        </td>
+        <td style="text-align:center;">
+            <input type="checkbox" id="guest-{{ room.room_id }}" name="guest-{{ room.room_id }}" value="guest" {{ 'checked' if room.guest_access == 1 else null }}>
+        </td>
+        <td></td>
+        <td></td>
+    </tr>
+    
+    <tr class="device-header {{ visClass }}">
+        <th></th>
+        <th></th>
+        <th>Device</th>
+        <th>Seq</th>
+        <th>Visible</th>
+        <th>Guest Access</th>
+        <th>Icon</th>
+    </tr>
+    {% for device in room.devices %}
+        {% set deviceIdx = loop.index0 %}
+        {% if room.visible != 1 or device.visible != 1 %}
+            {% set visClass = "not-visible" %}
+        {% else %}
+            {% set visClass = "" %}
+        {% endif %}
+        <tr class="device {{ visClass }}" data-room="{{ roomIdx }}" id="device-{{ loop.index0 }}">
+            <td></td>
+            <td></td>
+            <td>{{ device.label }}</td>
+            <td style="text-align:center; min-width: 70px;">
+                <input type="number" id="seq-{{ device.device_id }}" min="0" max="99" value="{{ device.seq }}">
+            </td>
+            <td style="text-align:center;">
+                <input type="checkbox" id="visible-{{ device.device_id }}" name="visible-{{ device.device_id }}" value="visible" {{ 'checked' if device.visible == 1 else null }}>
+            </td>
+            <td style="text-align:center;">
+                <input type="checkbox" id="guest-{{ device.device_id }}" name="guest-{{ device.device_id }}" value="guest" {{ 'checked' if device.guest_access == 1 else null }}>
+            </td>
+            <td contenteditable>{{ device.icon }}</td>
+        </tr>
+        <tr class="capability-header {{ visClass }}">
+            <th></th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th>Capability</th>
+            <th>Visible</th>
+        </tr>
+        {% for capability in device.capabilities %}
+            {% if room.visible != 1 or device.visible != 1 or capability.visible != 1 %}
+                {% set visClass = "not-visible" %}
+            {% else %}
+                {% set visClass = "" %}
+            {% endif %}
+            <tr class="capability {{ visClass }}" data-room="{{ roomIdx }}" data-device="{{ deviceIdx }}" id="capability-{{ loop.index0 }}">
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>{{ capability.capability_id }}</td>
+                <td style="text-align:center;">
+                    <input type="checkbox" id="visible-{{ device.device_id }}-{{capability.capability_id }}" name="visible-{{ device.device_id }}-{{capability.capability_id }}" value="visible" {{ 'checked' if capability.visible == 1 else null }}>
+                </td>
+            </tr>
+        {% endfor %}
+    {% endfor %}
+    
+    
+  {% endfor %}
+  </table>
+  <div class="section save-container"><p><button type="button" class="button is-info is-medium" id="btnSave" onclick="saveConfig()">Save</button></p></div>
+  
+  <script>
+    document.querySelector("#rooms-menu").classList.add("active");
+      
+    const ROOM_NAME = 1;
+    const ROOM_SEQ = 2;
+    const ROOM_VIS = 3;
+    const ROOM_GUEST = 4;
+    const DEVICE_LABEL = 2;
+    const DEVICE_SEQ = 3;
+    const DEVICE_VIS = 4;
+    const DEVICE_GUEST = 5;
+    const DEVICE_ICON = 6;
+    const CAPABILITY_ID = 5;
+    const CAPABILITY_VIS = 6;
+    
+    disp = document.querySelector("#configs");
+    var configData = {{ configData | safe }};
+    console.log(JSON.stringify(configData, null, 2));
+    
+    var table = document.querySelector("#room-table");
+    table.addEventListener("keypress", function(e) {
+      if (e.key == "Enter") {
+        e.preventDefault();
+      }
+    });
+
+    table.addEventListener("focusout", function(e) {
+      var tableRow = e.target.closest("tr");
+      var tableCell = e.target.closest("td");
+      var defaultColor = tableRow.cells[0].style.backgroundColor;
+
+      if (tableRow.classList.contains("room")) {
+        var roomId = tableRow.id;
+        var roomIdx = parseInt(roomId.substring(roomId.indexOf("-")+1));
+        var room = configData.rooms[roomIdx];
+        var cellSeq = document.querySelector("#seq-" + room.room_id);
+        var cellVisible = document.querySelector("#visible-" + room.room_id);
+        var cellVisibleVal = cellVisible.checked ? 1 : 0;
+        var cellGuest = document.querySelector("#guest-" + room.room_id);
+        var cellGuestVal = cellGuest.checked ? 1 : 0;
+
+        if (tableCell.cellIndex == ROOM_SEQ) {
+          if (room.seq != cellSeq.value) {
+            tableCell.style.backgroundColor = "red";
+          } else {
+            tableCell.style.backgroundColor = defaultColor;
+          }
+        } else if (tableCell.cellIndex == ROOM_VIS) {
+          if (room.visible != cellVisibleVal) {
+            tableCell.style.backgroundColor = "red";
+          } else {
+            tableCell.style.backgroundColor = defaultColor;
+          }
+        } else if (tableCell.cellIndex == ROOM_GUEST) {
+          if (room.guest_access != cellGuestVal) {
+            tableCell.style.backgroundColor = "red";
+          } else {
+            tableCell.style.backgroundColor = defaultColor;
+          }
+        }
+      } else if (tableRow.classList.contains("device")) {
+        var roomIdx = tableRow.getAttribute("data-room");
+        var deviceId = tableRow.id
+        var deviceIdx = parseInt(deviceId.substring(deviceId.indexOf("-")+1));
+        var device = configData.rooms[roomIdx].devices[deviceIdx];
+        var cellSeq = document.querySelector("#seq-" + device.device_id);
+        var cellVisible = document.querySelector("#visible-" + device.device_id);
+        var cellVisibleVal = cellVisible.checked ? 1 : 0;
+        var cellGuest = document.querySelector("#guest-" + device.device_id);
+        var cellGuestVal = cellGuest.checked ? 1 : 0;
+
+        if (tableCell.cellIndex == DEVICE_SEQ) {
+          if (device.seq != cellSeq.value) {
+            tableCell.style.backgroundColor = "red";
+          } else {
+            tableCell.style.backgroundColor = defaultColor;
+          }
+        } else if (tableCell.cellIndex == DEVICE_VIS) {
+          if (device.visible != cellVisibleVal) {
+            tableCell.style.backgroundColor = "red";
+          } else {
+            tableCell.style.backgroundColor = defaultColor;
+          }
+        } else if (tableCell.cellIndex == DEVICE_GUEST) {
+          if (device.guest_access != cellGuestVal) {
+            tableCell.style.backgroundColor = "red";
+          } else {
+            tableCell.style.backgroundColor = defaultColor;
+          }
+        } else if (tableCell.cellIndex == DEVICE_ICON) {
+          console.log("Icon: " + tableCell.innerText);
+          if (device.icon != tableCell.innerHTML) {
+            tableCell.style.backgroundColor = "red";
+          } else {
+            tableCell.style.backgroundColor = defaultColor;
+          }
+        }
+      } else if (tableRow.classList.contains("capability")) {
+        var roomIdx = tableRow.getAttribute("data-room");
+        var deviceIdx = tableRow.getAttribute("data-device");
+        var device = configData.rooms[roomIdx].devices[deviceIdx];
+        var capabilityId = tableRow.id
+        var capabilityIdx = parseInt(capabilityId.substring(capabilityId.indexOf("-")+1));
+        var capability = device.capabilities[capabilityIdx];
+        var cellVisible = document.querySelector("#visible-" + device.device_id + "-" + capability.capability_id);
+        var cellVisibleVal = cellVisible.checked ? 1 : 0;
+        
+        if (tableCell.cellIndex == CAPABILITY_VIS) {
+          if (capability.visible != cellVisibleVal) {
+            tableCell.style.backgroundColor = "red";
+          } else {
+            tableCell.style.backgroundColor = defaultColor;
+          }
+        }
+      }
+    });
+
+    function editNickname() {
+      nickname = document.querySelector("#location-nickname");
+      editNicknameBtn = document.querySelector("#edit-nickname");
+      
+      var name = prompt("Enter a nickname for this location:", nickname.innerHTML);
+      if (name != null) {
+        if (nickname.innerHTML != name) {
+          nickname.innerHTML = name;
+          if (name != configData.location.nickname) {
+            nickname.classList.remove("unchanged");
+            nickname.classList.add("changed");
+            editNicknameBtn.classList.remove("unchanged");
+            editNicknameBtn.classList.add("changed");
+          } else {
+            nickname.classList.remove("changed");
+            nickname.classList.add("unchanged");
+            editNicknameBtn.classList.remove("changed");
+            editNicknameBtn.classList.add("unchanged");
+          }
+        }
+      }
+    }
+    
+    function editEmail() {
+      email = document.querySelector("#location-email");
+      editEmailBtn = document.querySelector("#edit-email");
+      
+      var name = prompt("Enter an email address for this location:", email.innerHTML);
+      if (name != null) {
+        if (email.innerHTML != name) {
+          email.innerHTML = name;
+          if (name != configData.location.email) {
+            email.classList.remove("unchanged");
+            email.classList.add("changed");
+            editEmailBtn.classList.remove("unchanged");
+            editEmailBtn.classList.add("changed");
+          } else {
+            email.classList.remove("changed");
+            email.classList.add("unchanged");
+            editEmailBtn.classList.remove("changed");
+            editEmailBtn.classList.add("unchanged");
+          }
+        }
+      }
+    }
+    
+    function toggle(element) {
+        console.log("Clicked on " + element);
+        var rows = table.rows.length;
+        console.log("Table rows: " + rows);
+        var found = false;
+        var display = "none";
+        for (row = 0; row < rows; row++) {
+            var room = table.rows[row].cells[1].innerHTML;
+            if (room.length == 0 && found) {
+                table.rows[row].style.display = display;
+            } else {
+                found = false;
+            }
+            if (room == element) {
+                console.log("Found [" + room + "] at row " + row);
+                found = true;
+                if (row < rows-1) {
+                    var dispVal = window.getComputedStyle(table.rows[row+1], null).getPropertyValue("display");
+                    console.log("Display [" + dispVal + "]");
+                    if (dispVal == "none") {
+                        display = "table-row";
+                    } else {
+                        display = "none";
+                    }                    
+                }
+            }
+        }
+        
+    }
+    
+    function saveConfig() {
+        document.querySelector("#btnSave").classList.add("is-loading");
+        var table = document.querySelector("#room-table");
+        var rows = table.rows.length;
+        var configChanges = {"location": [], "rooms": [], "devices": [], "capabilities": []};
+
+        var nickname = document.querySelector("#location-nickname");
+        var email = document.querySelector("#location-email");
+        if (nickname.innerHTML != configData.location.nickname ||
+            email.innerHTML != configData.location.email) {
+              nicknameVal = nickname.innerHTML;
+              emailVal = email.innerHTML;
+          configChanges.location.push({"location_id": configData.location.location_id});
+          configChanges.location.push({"nickname": nicknameVal});
+          configChanges.location.push({"email": emailVal});
+        }
+        
+        var roomIdx = 0;
+        var deviceIdx = 0;
+        var capabilityIdx = 0;
+        for (row = 1; row < rows; row++) {
+            var tableRow = table.rows[row];
+            if (table.rows[row].classList.contains("room")) {
+                var room = tableRow.cells[ROOM_NAME];
+                var roomId = tableRow.id;
+                roomIdx = parseInt(roomId.substring(roomId.indexOf("-")+1))
+                var room = configData.rooms[roomIdx];
+                var cellSeq = document.querySelector("#seq-" + room.room_id);
+                var cellVisible = document.querySelector("#visible-" + room.room_id);
+                var cellVisibleVal = cellVisible.checked ? 1 : 0;
+                var cellGuest = document.querySelector("#guest-" + room.room_id);
+                var cellGuestVal = cellGuest.checked ? 1 : 0;
+
+                if (room.seq != cellSeq.value ||
+                    room.visible != cellVisibleVal ||
+                    room.guest_access != cellGuestVal) {
+                  var change = {"room_id": room.room_id}
+                  change.seq = cellSeq.value;
+                  change.visible = cellVisibleVal;
+                  change.guest_access = cellGuestVal;
+                  configChanges.rooms.push(change);
+                }
+            } else if (tableRow.classList.contains("device")) {
+                var device = tableRow.cells[DEVICE_LABEL];
+                var deviceId = tableRow.id;
+                deviceIdx = parseInt(deviceId.substring(deviceId.indexOf("-")+1));
+                var device = configData.rooms[roomIdx].devices[deviceIdx];
+                var cellSeq = document.querySelector("#seq-" + device.device_id);
+                var cellVisible = document.querySelector("#visible-" + device.device_id);
+                var cellVisibleVal = cellVisible.checked ? 1 : 0;
+                var cellGuest = document.querySelector("#guest-" + device.device_id);
+                var cellGuestVal = cellGuest.checked ? 1 : 0;
+                var cellIcon = tableRow.cells[DEVICE_ICON];
+
+                if (device.seq != cellSeq.value ||
+                    device.visible != cellVisibleVal ||
+                    device.guest_access != cellGuestVal ||
+                    device.icon != cellIcon.innerHTML) {
+                        var change = {"device_id": device.device_id};
+                        change.seq = cellSeq.value;
+                        change.visible = cellVisibleVal;
+                        change.guest_access = cellGuestVal;
+                        change.icon = cellIcon.innerText;
+                        configChanges.devices.push(change);
+                }
+            } else if (tableRow.classList.contains("capability")) {
+                var capability = tableRow.cells[CAPABILITY_ID];
+                var capabilityId = tableRow.id;
+                capabilityIdx = parseInt(capabilityId.substring(capabilityId.indexOf("-")+1));
+                var device = configData.rooms[roomIdx].devices[deviceIdx];
+                var capability = device.capabilities[capabilityIdx];
+                var cellVisible = document.querySelector("#visible-" + device.device_id + "-" + capability.capability_id);
+                var cellVisibleVal = cellVisible.checked ? 1 : 0;
+
+                if (capability.visible != cellVisibleVal) {
+                      var change = {"device_id": device.device_id,
+                            "capability_id": capability.capability_id};
+                      change.visible = cellVisibleVal;
+                      configChanges.capabilities.push(change);
+                }
+            }
+        }
+        console.log(configChanges);
+        if (configChanges.location.length > 0 || configChanges.rooms.length > 0 ||
+            configChanges.devices.length > 0 || configChanges.capabilities.length > 0) {
+          updateConfigs(configChanges);
+          window.location.reload();
+        } else {
+            document.querySelector("#btnSave").classList.remove("is-loading");
+        }
+    }
+
+		function updateConfigs(configChanges) {
+			var furl = "/update-room-configs";
+			console.log("furl: " + furl);
+
+			var xhttp=new XMLHttpRequest();
+			xhttp.onreadystatechange = function() {
+				if (this.readyState == 4 && this.status == 200) {
+					if (this.response != "OK") {
+						alert("Update Failed!  Please try again.");
+					}
+				}
+			};
+			xhttp.open("POST", furl);
+      xhttp.setRequestHeader("Content-Type", "application/json");
+			xhttp.send(JSON.stringify(configChanges));
+		};
+  </script>
+
+{% endblock %}

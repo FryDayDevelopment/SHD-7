@@ -1,0 +1,104 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<div class="content">
+<h1>Configure Logging</h1>
+<h6>Select Events to Log</h6>
+</div>
+<table class="container logging-table" id="logging-table">
+    <tr>
+        <th>Event</th>
+        <th>Log Event</th>
+    </tr>
+{% for log in logData.logs %}
+    <tr>
+        <td>{{ log.event }}</td>
+        <td> <input type="checkbox" id="{{ log.event }}" name="{{ log.event }}" value="log" {{ 'checked' if log.log_event == '1' else '' }}>
+             <label for="{{ log.event }}">Log</label>
+        </td>
+    </tr>
+{% endfor %}    
+</table>
+<div class="section save-container">
+    <p>
+        <button type="button" class="button is-info is-medium" id="btnSave" onclick="saveConfig()">Save</button>
+    </p>
+</div>
+
+<script>
+    document.querySelector("#users-menu").classList.add("active");
+    var logData = {{ logData | safe }};
+    console.log(JSON.stringify(logData));
+    
+    const EVENT = 0;
+    const LOG_EVENT = 1;
+    
+    var table = document.querySelector("#logging-table");
+/*
+    table.addEventListener("keypress", function(e) {
+      if (e.key == "Enter") {
+        e.preventDefault();
+      }
+    });
+*/
+    table.addEventListener("focusout", function(e) {
+        var tableRow = e.target.closest("tr");
+        var tableCell = e.target.closest("td");
+        var index = tableRow.rowIndex-1;
+        var defaultColor = tableRow.cells[0].style.backgroundColor;
+        if (tableCell.cellIndex == EVENT) {
+            if (document.querySelector(logData.logs[index].event).checked) {
+                tableCell.style.backgroundColor = "red";
+            } else {
+                tableCell.style.backgroundColor = defaultColor;
+            }
+        }
+    });
+    
+    function saveConfig() {
+        document.querySelector("#btnSave").classList.add("is-loading");
+        var rows = table.rows.length;
+
+        var logChanges = {"logs": []};
+
+        for (row = 1; row < rows; row++) {
+            var tableRow = table.rows[row];
+            console.log("event: " + logData.logs[row-1].event + " / " + logData.logs[row-1].log_event);
+			var logCell = document.querySelector("#" + logData.logs[row-1].event);
+			var logEvent = logCell.checked ? 1 : 0;
+			if (logEvent != logData.logs[row-1].log_event) {
+				logChanges.logs.push({"id": logData.logs[row-1].id,
+									  "log_event": logCell.checked ? "1" : "0"});            
+			}
+		}
+
+        console.log(logChanges);
+
+        if (logChanges.logs.length > 0) {
+          updateConfig(logChanges);
+          window.location.reload();
+        } else {
+            document.querySelector("#btnSave").classList.remove("is-loading");
+        }
+    }
+
+    function updateConfig(logChanges) {
+        var furl = "/update-logging";
+        console.log("furl: " + furl);
+
+        var xhttp=new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                if (this.response != "OK") {
+                    alert("Update Failed!  Please try again.");
+                }
+            }
+        };
+        xhttp.open("POST", furl);
+        xhttp.setRequestHeader("Content-Type", "application/json");
+        xhttp.send(JSON.stringify(logChanges));
+    };
+    
+</script>
+{% endblock %}
+

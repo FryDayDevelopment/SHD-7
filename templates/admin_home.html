@@ -1,0 +1,117 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<div class="content">
+	<h1>Admin Home Page</h1>
+	<p>
+		These pages will allow you to access Admin-Only views and features.<br />
+		Use the menus above to navigate to the desired feature.
+	</p>
+	<p>
+		You can use the links below to refresh the database from SmartThings.<br />
+		This can be helpful if you add/remove/rename something or have to resync data for some reason.<br />
+	</p>
+	<div class="columns is-three-quarters-mobile">
+		<div class="column">
+			<button type="button" class="button is-info is-medium" id="btnRefreshScenes" onclick="refreshScenes()">Refresh Scenes</button>
+		</div>
+		<div class="column">
+			Use if you add/delete/rename a scene
+		</div>
+	</div>
+	<div class="columns is-three-quarters-mobile">
+		<div class="column">
+			<button type="button" class="button is-info is-medium" id="btnRefreshStatus" onclick="refreshDeviceStatus()">Refresh Device Status</button>
+		</div>
+		<div class="column">
+			Refresh all devices status
+		</div>
+	</div>
+	<div class="columns is-three-quarters-mobile">
+		<div class="column">
+			<button type="button" class="button is-info is-medium" id="btnRefreshHealth" onclick="refreshDeviceHealth()">Refresh Device Health</button>
+		</div>
+		<div class="column">
+			Refresh all devices health
+		</div>
+	</div>
+	<div class="columns is-three-quarters-mobile">
+		<div class="column">
+			<button type="button" class="button is-info is-medium" id="btnRefreshFoundation" onclick="refreshFoundation()">Refresh Foundation Data</button>
+		</div>
+		<div class="column">
+			Refresh Foundation Data (App, Location, Rooms and Devices)
+		</div>
+	</div>
+
+<script>
+	document.querySelector("#home-menu").classList.add("active");
+	function refreshScenes() {
+		document.querySelector("#btnRefreshScenes").classList.add("is-loading");
+		var furl = "/admin-refresh-scenes";
+		var xhttp=new XMLHttpRequest();
+		xhttp.onreadystatechange = function() {
+			if (this.readyState == 4 && this.status == 200) {
+				if (this.response != "OK") {
+				alert("Update Failed! Please try again.");
+				} else {
+					document.querySelector("#btnRefreshScenes").classList.remove("is-loading");
+				}
+			}
+		};
+		xhttp.open("POST", furl);
+		xhttp.send();		
+	}
+	
+	function refreshDeviceStatus() {
+		document.querySelector("#btnRefreshStatus").classList.add("is-loading");
+		var furl = "/admin-refresh-device-status";
+		var xhttp=new XMLHttpRequest();
+		xhttp.onreadystatechange = function() {
+			if (this.readyState == 4 && this.status == 200) {
+				if (this.response != "OK") {
+					alert("Update Failed! Please try again.");
+				} else {
+					document.querySelector("#btnRefreshStatus").classList.remove("is-loading");
+				}
+			}
+		};
+		xhttp.open("POST", furl);
+		xhttp.send();		
+	}
+	
+	function refreshDeviceHealth() {
+		document.querySelector("#btnRefreshHealth").classList.add("is-loading");
+		var furl = "/admin-refresh-device-health";
+		var xhttp=new XMLHttpRequest();
+		xhttp.onreadystatechange = function() {
+			if (this.readyState == 4 && this.status == 200) {
+				if (this.response != "OK") {
+					alert("Update Failed! Please try again.");
+				} else {
+					document.querySelector("#btnRefreshHealth").classList.remove("is-loading");
+				}
+			}
+		};
+		xhttp.open("POST", furl);
+		xhttp.send();		
+	}
+
+	function refreshFoundation() {
+		document.querySelector("#btnRefreshFoundation").classList.add("is-loading");
+		var furl = "/admin-refresh-foundation";
+		var xhttp=new XMLHttpRequest();
+		xhttp.onreadystatechange = function() {
+			if (this.readyState == 4 && this.status == 200) {
+				if (this.response != "OK") {
+					alert("Update Failed! Please try again.");
+				} else {
+					document.querySelector("#btnRefreshFoundation").classList.remove("is-loading");
+				}
+			}
+		};
+		xhttp.open("POST", furl);
+		xhttp.send();		
+	}
+</script>
+{% endblock %}

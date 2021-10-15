@@ -1,0 +1,66 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<div class="content">
+<h1>Failed Login Attempts</h1>
+</div>
+
+<table class="container failed-table" id="failed-table">
+    <tr>
+        <th>ID</th>
+        <th>Email</th>
+        <th>Password</th>
+        <th>Date</th>
+        <th>IP</th>
+    </tr>
+{% for data in logData.data %}
+    <tr>
+        <td>{{ data.id }}</td>
+        <td>{{ data.email }}</td>
+        <td>{{ data.password }}</td>
+        <td>{{ data.date }}</td>
+        <td>{{ data.ip }}</td>
+    </tr>
+{% endfor %}    
+</table>
+<div class="section save-container"><p><button type="button" class="button is-danger is-medium" id="btnDelete" onclick="deleteLog()">Delete</button></p></div>
+
+
+<script>
+    document.querySelector("#users-menu").classList.add("active");
+    var logData = {{ logData | safe }};
+    console.log(JSON.stringify(logData,null,2));
+    
+    var table = document.querySelector("#failed-table");
+
+    function deleteLog() {
+      if (!confirm("Are you sure you want to delete all records?")) {
+	return;
+      }
+
+      document.querySelector("#btnDelete").classList.add("is-loading");
+      logRecords = {"logs": []}
+	  
+      logData.data.forEach( log => {
+	logRecords.logs.push({"id": log.id});
+      });
+      deleteLogData(logRecords);
+      window.location.reload();
+    }
+
+    function deleteLogData(logData) {
+      var furl = "/delete-failed-login";
+      var xhttp=new XMLHttpRequest();
+      xhttp.onreadystatechange = function() {
+	if (this.readyState == 4 && this.status == 200) {
+	  if (this.response != "OK") {
+	    alert("Update Failed! Please try again.");
+	  }
+	}
+      };
+      xhttp.open("POST", furl);
+      xhttp.setRequestHeader("Content-Type", "application/json");
+      xhttp.send(JSON.stringify(logData));
+    }
+</script>
+{% endblock %}

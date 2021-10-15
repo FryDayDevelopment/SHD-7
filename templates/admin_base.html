@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">	
+    <title>SmartThings Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css" />
+    <link rel="stylesheet" href="static/css/all.css" />
+	
+    <style>
+	html {
+	    background-color: lightblue;
+	    font-size: 24px;
+	}
+	/* Add a black background color to the top navigation */
+	.topnav {
+	    background-color: #333;
+	    overflow: hidden;
+	    margin-bottom: 30px;
+	}
+
+	/* Style the links inside the navigation bar */
+	.topnav a {
+	    float: left;
+	    display: block;
+	    color: #f2f2f2;
+	    text-align: center;
+	    padding: 14px 16px;
+	    text-decoration: none;
+	}
+
+	/* Change the color of links on hover */
+	.topnav a:hover {
+	    background-color: #ddd;
+	    color: black;
+	}
+
+	/* Add an active class to highlight the current page */
+	.topnav a.active, .topnav .dropbtn.active {
+	    background-color: #04AA6D;
+	    color: white;
+	}
+
+	.hamburger-menu {
+	    float: right;
+	    display: none;
+	}
+	.full-menu {
+	    display: block;
+	}
+	.menu-item {
+	    min-width: 120px;
+	}
+
+	.topnav.responsive .full-menu {
+	    float: none;
+	    display: block;
+	    text-align: left;
+	}
+
+	/* The dropdown container */
+	.dropdown {
+	    float: left;
+	}
+
+	/* Dropdown button */
+	.dropdown .dropbtn {
+	    font-size: 24px;
+	    border: none;
+	    outline: none;
+	    color: white;
+	    text-align: center;
+	    padding: 16px 16px;
+	    background-color: inherit;
+	    font-family: inherit; /* Important for vertical align on mobile phones */
+	}
+
+	/* Dropdown content (hidden by default) */
+	.dropdown-content {
+	    display: none;
+	    position: fixed;
+	    top: 60px;
+	    left: 120px;
+	    background-color: #f9f9f9;
+	    min-width: 160px;
+	    min-height: 100px;
+	    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+	    z-index: 1;
+	}
+
+	/* Links inside the dropdown */
+	.dropdown-content a {
+	    float: none;
+	    color: black;
+	    padding: 12px 16px;
+	    text-decoration: none;
+	    display: block;
+	    text-align: left;
+	}
+
+	/* Add a grey background color to dropdown links on hover */
+	.dropbtn:hover, .dropdown-content a:hover {
+	    background-color: #ddd;
+	    color: black;
+	}
+
+	/* Show the dropdown menu on hover */
+	.dropdown:hover .dropdown-content {
+	    display: block;
+	}
+
+
+	.current-user {
+	    float: right;
+	    color: white;
+	    padding: 14px 16px;
+	}
+
+	/* Room Config Styles */
+	.location-data {
+	    width: 90%;
+	    margin: 30px auto;
+	}
+	.user-table, .presence-table, .scene-table, .logging-table, .failed-table, .log-table {
+	    background-color: white;
+	    margin: 30px auto;
+	}
+
+	table {
+	    width: 90%;
+	    margin-top: 30px;
+	}
+
+	table, th, td {
+	    border: 1px solid black;
+	    border-collapse: collapse;
+	}
+
+	th, td {
+	    padding: 3px;
+	}
+
+	select {
+	    width: 100%;
+	    font-size: 24px;
+	}
+
+	input[type="checkbox"] {
+	    width: 20px;
+	    height: 20px;
+	}
+	input[type="number"] {
+	    text-align: right;
+	}
+	input {
+	    font-size: 20px;
+	    width: 100%;
+	}
+
+	.room, .room-header {
+	    background-color: white;
+	}
+
+	.device, .device-header {
+	    background-color: khaki;
+	    display: none;
+	}
+
+	.capability, .capability-header {
+	    background-color: beige;
+	    display: none;
+	}
+
+	.right-align {
+	    text-align: right;
+	}
+
+	.not-visible {
+	    background-color: lightgray;
+	}
+
+	.curr-user {
+	    background-color: yellow;
+	}
+
+	.collapse {
+	    display: none;
+	}
+
+	.save-container {
+	    width: 100%;
+	    text-align: center;
+	    margin: auto;
+	}
+
+	.save-button, .add-button {
+	    margin-left: auto;
+	    width: 100px;
+	    height: 50px;
+	    font-size: 24px;
+	}
+
+	.unchanged {
+	    color: blue;
+	    background-color: white;
+	}
+
+	.changed {
+	    color: black;
+	    background-color: red;
+	}
+
+	.form-background {
+	    display: none;
+	    position: fixed;
+	    top: 0;
+	    left: 0;
+	    bottom: 0;
+	    right: 0;
+	    background-color: rgba(169, 200, 236, 0.85);
+	}
+	#add-user-form {
+	    position: relative;
+	    top: 100px;
+	    max-width: 500px;
+	    margin: auto;
+	    padding: 20px;
+	    border: 3px solid #f1f1f1;
+	    z-index: 9;
+	    color: black;
+	    background-color: white;
+	    font-size: 18px;
+	    overflow: auto;
+	}
+
+	@media screen and (max-width: 500px) {
+	    body {
+		font-size: 18px;
+	    }
+	    select {
+		font-size: 18px;
+	    }
+	    .topnav .hamburger-menu {
+		display: block;
+	    }
+	    .topnav .full-menu {
+		display: none;
+	    }
+	    .topnav a {
+		float: none;
+		padding: 10px 12px;
+		text-align: left;
+	    }
+	    .dropdown {
+		float: none;
+	    }
+	    .dropdown .dropbtn {
+		font-size: 18px;
+		padding: 12px 12px;
+	    }
+	    .dropdown-content {
+		top: 47px;
+		left: 85px;
+	    }
+	    .dropdown-content a {
+		padding: 3px 5px;
+	    }
+	    .current-user {
+		padding: 10px 12px;
+	    }
+	}
+
+    </style>
+</head>
+
+<body>
+    <div class="topnav" id="topnav">
+	<div class="current-user">
+	    <i class="fas fa-user">   {{ current_user.name }}</i>
+	</div>
+	<div class="hamburger-menu">
+	    <a href="javascript:void(0);" class="icon-menu" onclick="myFunction()">
+		<i class="fa fa-bars"></i>
+	    </a>
+	</div>	
+	<a class="menu-item" id="home-menu" href="/admin">Home</a>
+	    <div class="full-menu">
+		<div class="dropdown">
+		    <button id="users-menu" class="dropbtn">Users
+		      <i class="fa fa-caret-down"></i>
+		    </button>
+		    <div class="dropdown-content">
+		      <a href="/admin-users">Maintain Users</a>
+		      <a href="/admin-logging">Log Settings</a>
+		      <a href="/admin-failed-logins">Failed Logins</a>
+		      <a href="/admin-view-logs">View Logs</a>
+		    </div>
+		</div>
+		<a class="menu-item" id="rooms-menu" href="/config-rooms">Rooms</a>
+		<a class="menu-item" id="presence-menu" href="/config-presence">Presence</a>
+		<a class="menu-item" id="scenes-menu" href="/config-scenes">Scenes</a>
+	    </div>
+	</div>
+    </div>
+    <div class="container has-text-centered">
+       {% block content %}
+       {% endblock %}
+    </div>    
+    
+    <script>
+	function myFunction() {
+	    var x = document.getElementById("topnav");
+	    if (x.className === "topnav") {
+		x.className += " responsive";
+	    } else {
+		x.className = "topnav";
+	    }
+	}    
+    </script>
+</body>
+
+</html>

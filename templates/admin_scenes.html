@@ -1,0 +1,144 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<div class="content">
+<h1>Scenes Configuration</h1>
+<h6>Update 'Seq' to change display sequence<br />
+Update 'Visible' to hide/display items<br />
+Update 'Guest Access' to allow Guest Users to run scene</h6>
+</div>
+
+<table class="container scene-table" id="scene-table">
+    <tr>
+        <th>Scene</th>
+        <th>Seq</th>
+        <th>Visible</th>
+        <th>Guest Access</th>
+    </tr>
+{% for scene in configData.scenes %}
+  {% if scene.visible != 1 %}
+    {% set visClass = "not-visible" %}
+  {% else %}
+    {% set visClass = "" %}
+  {% endif %}
+    <tr class="{{ visClass }}">
+        <td>{{ scene.name }}</td>
+        <td style="text-align:center; min-width:70px;">
+            <input type="number" id="seq-{{ scene.scene_id }}" min="0" max="99" value="{{ scene.seq }}">
+        </td>
+        <td style="text-align:center;">
+            <input type="checkbox" id="visible-{{ scene.scene_id }}" name="visible-{{ scene.scene_id }}" value="visible" {{ 'checked' if scene.visible == 1 else null }}>
+        </td>
+        <td style="text-align:center;">
+            <input type="checkbox" id="guest-{{ scene.scene_id }}" name="guest-{{ scene.scene_id }}" value="guest" {{ 'checked' if scene.guest_access == 1 else null }}>
+        </td>
+    </tr>
+{% endfor %}    
+</table>
+<div class="section save-container"><p><button type="button" class="button is-info is-medium" id="btnSave" onclick="saveConfig()">Save</button></p></div>
+
+
+<script>
+    document.querySelector("#scenes-menu").classList.add("active");
+    var configData = {{ configData | safe }};
+
+    
+    const NAME = 0;
+    const SEQ = 1;
+    const VISIBLE = 2;
+    const GUEST = 3;
+    
+    var table = document.querySelector("#scene-table");
+
+    table.addEventListener("keypress", function(e) {
+      if (e.key == "Enter") {
+        e.preventDefault();
+      }
+    });
+
+    table.addEventListener("focusout", function(e) {
+        var tableRow = e.target.closest("tr");
+        var tableCell = e.target.closest("td");
+        var index = tableRow.rowIndex-1;
+        var cellSeq = document.querySelector("#seq-" + configData.scenes[index].scene_id);
+        var cellVisible = document.querySelector("#visible-" + configData.scenes[index].scene_id);
+        var cellVisibleVal = cellVisible.checked ? 1 : 0;
+        var cellGuest = document.querySelector("#guest-" + configData.scenes[index].scene_id);
+        var cellGuestVal = cellGuest.checked ? 1 : 0;
+        var defaultColor = tableRow.cells[0].style.backgroundColor;
+        console.log("Row: " + index);
+        if (tableCell.cellIndex == SEQ) {
+            if (configData.scenes[index].seq != cellSeq.value) {
+                tableCell.style.backgroundColor = "red";
+            } else {
+                tableCell.style.backgroundColor = defaultColor;
+            }
+        } else if (tableCell.cellIndex == VISIBLE) {
+            if (configData.scenes[index].visible != cellVisibleVal) {
+                tableCell.style.backgroundColor = "red";
+            } else {
+                tableCell.style.backgroundColor = defaultColor;
+            }
+        } else if (tableCell.cellIndex == GUEST) {
+            if (configData.scenes[index].guest_access != cellGuestVal) {
+                tableCell.style.backgroundColor = "red";
+            } else {
+                tableCell.style.backgroundColor = defaultColor;
+            }
+        }
+    });
+    
+    
+    function saveConfig() {
+        document.querySelector("#btnSave").classList.add("is-loading");
+        var rows = table.rows.length;
+        var configChanges = {"scenes": []};
+
+        for (row = 1; row < rows; row++) {
+            var tableRow = table.rows[row];
+            var cellSeq = document.querySelector("#seq-" + configData.scenes[row-1].scene_id);
+            var cellVisible = document.querySelector("#visible-" + configData.scenes[row-1].scene_id);
+            var cellVisibleVal = cellVisible.checked ? 1 : 0;
+            var cellGuest = document.querySelector("#guest-" + configData.scenes[row-1].scene_id);
+            var cellGuestVal = cellGuest.checked ? 1 : 0;
+            
+            if (cellSeq.value != configData.scenes[row-1].seq ||
+                cellVisibleVal != configData.scenes[row-1].visible ||
+                cellGuestVal != configData.scenes[row-1].guest_access) {
+                configChanges.scenes.push({"scene_id": configData.scenes[row-1].scene_id,
+                                           "seq": cellSeq.value,
+                                           "visible": cellVisibleVal,
+                                           "guest_access": cellGuestVal});
+            
+            }
+        }
+
+        console.log(configChanges);
+
+        if (configChanges.scenes.length > 0) {
+          updateConfigs(configChanges);
+          window.location.reload();
+        } else {
+            document.querySelector("#btnSave").classList.remove("is-loading");
+        }
+    }
+
+    function updateConfigs(configChanges) {
+        var furl = "/update-scene-configs";
+        console.log("furl: " + furl);
+
+        var xhttp=new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                if (this.response != "OK") {
+                    alert("Update Failed!  Please try again.");
+                }
+            }
+        };
+        xhttp.open("POST", furl);
+        xhttp.setRequestHeader("Content-Type", "application/json");
+        xhttp.send(JSON.stringify(configChanges));
+    };
+    
+</script>
+{% endblock %}

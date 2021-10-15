@@ -1,0 +1,18 @@
+# Ignore my_secrets folder.
+# Contents include an empy __init__.py file to identify the folder as a python package
+#   and secrets.py. 
+#   secrets.py must contain the following:
+#
+#   	SECRET_KEY = 'xxxxxxxxxxxxxxxxxxxx' # Secret Key used by flask-socketio
+#
+#		ST_WEBHOOK = 'xxxxxxxxxxxxxxxxxxxx' # SmartThings AppID
+#		PA_TOKEN = 'xxxxxxxxxxxxxxxxxxxx' # SmartThings Personal Access Token with ALL permissions
+#
+# 		Replace with your local and public URLs.  Used by flask-socketio
+#		CORS_ALLOWED_ORIGINS = ['http://127.0.0.1:5000', 'http://localhost:5000','http://192.168.2.221:5000','http://xxxxx.ngrok.io','https://xxxxx.ngrok.io']
+#
+/my_secrets
+/__pycache__
+users.db
+todo.txt
+tree.txt
